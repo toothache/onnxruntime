@@ -36,7 +36,6 @@ def set_num_threads(num_threads):
 
 def run(args):
     model = args.model
-    quant_model = args.model.replace(".onnx", "_scan_int8.onnx")
 
     sess_options = onnxruntime.SessionOptions()
     sess_options.intra_op_num_threads = 1
@@ -45,9 +44,12 @@ def run(args):
 
     if args.nuphar:
         assert 'NupharExecutionProvider' in onnxruntime.get_available_providers()
+        quant_model = args.model.replace(".onnx", "_scan_int8.onnx")
+
         set_num_threads(1)
         sess_quant = onnxruntime.InferenceSession(quant_model, providers=['NupharExecutionProvider'])
     else:
+        quant_model = args.model.replace(".onnx", "_quant.onnx")
         sess_quant = onnxruntime.InferenceSession(quant_model, providers=['CPUExecutionProvider'], sess_options=sess_options)
 
     input_dim = sess.get_inputs()[0].shape[2]

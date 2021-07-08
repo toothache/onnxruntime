@@ -5,6 +5,7 @@ import onnx
 from onnxruntime.nuphar.model_editor import convert_to_scan_model
 from onnxruntime.nuphar.model_quantizer import convert_matmul_model
 from onnxruntime.nuphar.rnn_benchmark import generate_model
+from onnxruntime.quantization import quantize_dynamic, QuantType
 from onnxruntime.tools.symbolic_shape_infer import SymbolicShapeInference
 
 
@@ -20,6 +21,9 @@ def generate_lstm(model_name, **kwargs):
     int8_model_name = os.path.splitext(model_name)[0] + '_int8.onnx'
     convert_matmul_model(scan_model_name, int8_model_name)
     onnx.save(SymbolicShapeInference.infer_shapes(onnx.load(int8_model_name)), int8_model_name)
+
+    model_quant = os.path.splitext(model_name)[0] + '_quant.onnx'
+    quantized_model = quantize_dynamic(model_name, model_quant, weight_type=QuantType.QUInt8)
 
 
 if __name__ == "__main__":
