@@ -366,7 +366,19 @@ else()
   endif()
 endif()
 
-onnxruntime_add_static_library(onnxruntime_mlas ${mlas_common_srcs} ${mlas_platform_srcs})
+if(onnxruntime_BUILD_MLAS_SHARED_LIB)
+  onnxruntime_add_shared_library(onnxruntime_mlas ${mlas_common_srcs} ${mlas_platform_srcs})
+
+  install(DIRECTORY ${ONNXRUNTIME_ROOT}/core/mlas/inc/  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/onnxruntime/core/mlas)
+
+  install(TARGETS onnxruntime_mlas
+        ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR})
+else()
+  onnxruntime_add_static_library(onnxruntime_mlas ${mlas_common_srcs} ${mlas_platform_srcs})
+endif()
+
 target_include_directories(onnxruntime_mlas PRIVATE ${ONNXRUNTIME_ROOT}/core/mlas/inc ${ONNXRUNTIME_ROOT}/core/mlas/lib)
 set_target_properties(onnxruntime_mlas PROPERTIES FOLDER "ONNXRuntime")
 if (WIN32)
