@@ -69,7 +69,7 @@ option(onnxruntime_USE_AVX512 "Use AVX512 instructions" OFF)
 
 option(onnxruntime_USE_OPENMP "Build with OpenMP support" OFF)
 option(onnxruntime_BUILD_SHARED_LIB "Build a shared library" OFF)
-option(onnxruntime_BUILD_MLAS_SHARED_LIB "Build MLAS as a shared library" OFF)
+option(onnxruntime_BUILD_STANDALONE_MLAS_LIB "Build MLAS as a standalone library" OFF)
 option(onnxruntime_BUILD_APPLE_FRAMEWORK "Build a macOS/iOS framework" OFF)
 option(onnxruntime_ENABLE_MICROSOFT_INTERNAL "Use this option to enable/disable microsoft internal only code" OFF)
 option(onnxruntime_USE_NUPHAR "Build with Nuphar" OFF)
@@ -431,15 +431,8 @@ if(onnxruntime_DISABLE_EXCEPTIONS)
   endif()
 endif()
 
-if (onnxruntime_BUILD_MLAS_SHARED_LIB)
-  if (WIN32 OR APPLE)
-    message(WARNING "Build MLAS as shared lib is not supported by this platform.")
-    set(onnxruntime_BUILD_MLAS_SHARED_LIB OFF)
-  endif()
-endif()
-
-if (onnxruntime_BUILD_MLAS_SHARED_LIB)
-  add_compile_definitions(ORT_USE_MLAS_SHARED_LIB)
+if (onnxruntime_BUILD_STANDALONE_MLAS_LIB)
+  add_compile_definitions(MLAS_STANDALONE_LIB)
 endif()
 
 # We need to link with libatomic on systems that do not have built-in atomics, or

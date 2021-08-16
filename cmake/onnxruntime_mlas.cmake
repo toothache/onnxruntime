@@ -366,8 +366,13 @@ else()
   endif()
 endif()
 
-if(onnxruntime_BUILD_MLAS_SHARED_LIB)
-  onnxruntime_add_shared_library(onnxruntime_mlas ${mlas_common_srcs} ${mlas_platform_srcs})
+if (onnxruntime_BUILD_STANDALONE_MLAS_LIB)
+  # doesn't support build mlas as a shared lib in Win32 or Apple
+  if (onnxruntime_BUILD_SHARED_LIB AND NOT (WIN32 OR APPLE))
+    onnxruntime_add_shared_library(onnxruntime_mlas ${mlas_common_srcs} ${mlas_platform_srcs})
+  else()
+    onnxruntime_add_static_library(onnxruntime_mlas ${mlas_common_srcs} ${mlas_platform_srcs})
+  endif()
 
   install(DIRECTORY ${ONNXRUNTIME_ROOT}/core/mlas/inc/  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/onnxruntime/core/mlas)
 
