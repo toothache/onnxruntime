@@ -3,7 +3,7 @@
 
 set(MLAS_SRC_DIR ${ONNXRUNTIME_ROOT}/core/mlas/lib)
 
-onnxruntime_add_static_library(onnxruntime_mlas
+onnxruntime_add_shared_library(onnxruntime_mlas
   ${MLAS_SRC_DIR}/platform.cpp
   ${MLAS_SRC_DIR}/threading.cpp
   ${MLAS_SRC_DIR}/sgemm.cpp
@@ -443,3 +443,11 @@ set_target_properties(onnxruntime_mlas PROPERTIES FOLDER "ONNXRuntime")
 if (WIN32)
   target_compile_options(onnxruntime_mlas PRIVATE "/wd6385" "/wd4127")
 endif()
+
+install(DIRECTORY ${ONNXRUNTIME_ROOT}/core/mlas/inc/
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/onnxruntime/core/mlas)
+
+install(TARGETS onnxruntime_mlas
+    ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR})
