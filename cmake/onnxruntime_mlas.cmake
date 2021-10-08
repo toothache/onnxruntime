@@ -27,6 +27,8 @@ onnxruntime_add_shared_library(onnxruntime_mlas
   ${MLAS_SRC_DIR}/qlgavgpool.cpp
 )
 
+target_link_libraries(onnxruntime_mlas PRIVATE onnxruntime_common nsync_cpp)
+
 set(ONNXRUNTIME_MLAS_LIBS onnxruntime_mlas)
 
 #TODO: set MASM flags properly
