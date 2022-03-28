@@ -831,14 +831,43 @@ SubGraphCollection_t TensorrtExecutionProvider::GetSupportedList(SubGraphCollect
     return nodes_list_output;
   }
 
+  const std::vector<NodeIndex>& node_index = graph.GetNodesInTopologicalOrder();
+  if (iterations++ == 0) {
+    // Get supported node list recursively
+    SubGraphCollection_t parser_nodes_list;
+    TensorrtLogger& trt_logger = GetTensorrtLogger();
+    auto trt_builder = tensorrt_ptr::unique_pointer<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(trt_logger));
+    const auto explicitBatch = 1U << static_cast<uint32_t>(nvinfer1::NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
+    auto trt_network = tensorrt_ptr::unique_pointer<nvinfer1::INetworkDefinition>(trt_builder->createNetworkV2(explicitBatch));
+
+    auto trt_parser = tensorrt_ptr::unique_pointer<nvonnxparser::IParser>(nvonnxparser::createParser(*trt_network, trt_logger));
+
+    // first run
+    std::ifstream onnx_file(model_path_, std::ios::binary | std::ios::ate);
+    std::streamsize file_size = onnx_file.tellg();
+    onnx_file.seekg(0, std::ios::beg);
+
+    std::vector<char> onnx_buf(file_size);
+    onnx_file.read(onnx_buf.data(), onnx_buf.size());
+
+    trt_parser->supportsModel(onnx_buf.data(), onnx_buf.size(), parser_nodes_list, model_path_);
+
+    // map node order to topology order
+    for (auto& parse_group : parser_nodes_list) {
+      for (size_t i = 0; i < parse_group.first.size(); ++i) {
+        const auto iter = std::find(node_index.begin(), node_index.end(), parse_group.first[i]);
+        parse_group.first[i] = std::distance(node_index.begin(), iter);
+      }
+    }
+    return GetSupportedList(parser_nodes_list, iterations, max_iterations, graph, early_termination);
+  }
+
   // Get parent graph output names
   std::unordered_set<std::string> graph_output_names;
   for (const auto* output_arg : graph.GetOutputs()) {
     graph_output_names.insert(output_arg->Name());
   }
 
-  iterations++;
-  const std::vector<NodeIndex>& node_index = graph.GetNodesInTopologicalOrder();
   for (const auto& group : nodes_vector_input) {
     // Construct subgraph
     if (!group.first.empty()) {
