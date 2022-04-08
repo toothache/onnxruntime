@@ -665,7 +665,7 @@ Status TensorrtExecutionProvider::SetComputeStream(void* stream) {
 }
 
 // Convert GraphViewer graph to GraphProto
-void ToGraphProtoInternal(const GraphViewer& graph, ONNX_NAMESPACE::GraphProto& graph_proto) {
+void ToGraphProtoInternal(const GraphViewer& graph, ONNX_NAMESPACE::GraphProto& graph_proto, bool use_topology_order=true) {
   for (const auto* input_arg : graph.GetInputs()) {
     *(graph_proto.mutable_input()->Add()) = input_arg->ToProto();
   }
@@ -685,10 +685,18 @@ void ToGraphProtoInternal(const GraphViewer& graph, ONNX_NAMESPACE::GraphProto& 
   }
 
   // Nodes must be sorted in Topological Order in the GraphProto per ONNX spec.
-  for (auto& node_idx : graph.GetNodesInTopologicalOrder()) {
-    const gsl::not_null<ONNX_NAMESPACE::NodeProto*> node_proto{graph_proto.add_node()};
-    const gsl::not_null<const Node*> p_node{graph.GetNode(node_idx)};
-    p_node->ToProto(*node_proto);
+  if (use_topology_order) {
+    for (auto& node_idx : graph.GetNodesInTopologicalOrder()) {
+      const gsl::not_null<ONNX_NAMESPACE::NodeProto*> node_proto{graph_proto.add_node()};
+      const gsl::not_null<const Node*> p_node{graph.GetNode(node_idx)};
+      p_node->ToProto(*node_proto);
+    }
+  } else {
+    for (size_t node_idx = 0; node_idx < graph.NumberOfNodes(); node_idx++) {
+      const gsl::not_null<ONNX_NAMESPACE::NodeProto*> node_proto{graph_proto.add_node()};
+      const gsl::not_null<const Node*> p_node{graph.GetNode(node_idx)};
+      p_node->ToProto(*node_proto);
+    }
   }
 }
 
@@ -843,22 +851,21 @@ SubGraphCollection_t TensorrtExecutionProvider::GetSupportedList(SubGraphCollect
     auto trt_parser = tensorrt_ptr::unique_pointer<nvonnxparser::IParser>(nvonnxparser::createParser(*trt_network, trt_logger));
 
     // first run
-    std::ifstream onnx_file(model_path_, std::ios::binary | std::ios::ate);
-    std::streamsize file_size = onnx_file.tellg();
-    onnx_file.seekg(0, std::ios::beg);
+    auto model = graph.CreateModel(*GetLogger());
+    auto model_proto = model->ToProto();
+    ToGraphProtoInternal(graph, *model_proto->mutable_graph(), false);
+    model_proto->set_ir_version(ONNX_NAMESPACE::Version::IR_VERSION);
 
-    std::vector<char> onnx_buf(file_size);
-    onnx_file.read(onnx_buf.data(), onnx_buf.size());
+    std::string string_buf;
+    model_proto->SerializeToString(string_buf);
 
-    trt_parser->supportsModel(onnx_buf.data(), onnx_buf.size(), parser_nodes_list, model_path_);
-
-    // map node order to topology order
-    for (auto& parse_group : parser_nodes_list) {
-      for (size_t i = 0; i < parse_group.first.size(); ++i) {
-        const auto iter = std::find(node_index.begin(), node_index.end(), parse_group.first[i]);
-        parse_group.first[i] = std::distance(node_index.begin(), iter);
-      }
+    if (dump_subgraphs_) {
+      // Dump TensorRT subgraph for debugging
+      std::fstream dump("TensorrtExecutionProvider_TRT_Subgraph.onnx", std::ios::out | std::ios::trunc | std::ios::binary);
+      model_proto->SerializeToOstream(dump);
     }
+
+    trt_parser->supportsModel(string_buf.data(), string_buf.size(), parser_nodes_list, model_path_);
     return GetSupportedList(parser_nodes_list, iterations, max_iterations, graph, early_termination);
   }
 
