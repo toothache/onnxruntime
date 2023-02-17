@@ -372,7 +372,7 @@ std::unique_ptr<IExecutionProvider> CreateExecutionProviderInstance(
     // If the environment variable 'ORT_TENSORRT_UNAVAILABLE' exists, then we do not load TensorRT. This is set by _ld_preload for the manylinux case
     // as in that case, trying to load the library itself will result in a crash due to the way that auditwheel strips dependencies.
     if (Env::Default().GetEnvironmentVar("ORT_TENSORRT_UNAVAILABLE").empty()) {
-      std::string calibration_table, cache_path, lib_path;
+      std::string calibration_table, cache_path, lib_path, preview_features;
       auto it = provider_options_map.find(type);
       if (it != provider_options_map.end()) {
         OrtTensorRTProviderOptionsV2 params{
@@ -509,6 +509,13 @@ std::unique_ptr<IExecutionProvider> CreateExecutionProviderInstance(
               params.trt_force_sequential_engine_build = false;
             } else {
               ORT_THROW("[ERROR] [TensorRT] The value for the key 'trt_force_sequential_engine_build' should be a boolean i.e. 'True' or 'False'. Default value is False.\n");
+            }
+          } else if (option.first == "trt_preview_features") {
+            if (!option.second.empty()) {
+              preview_features = option.second;
+              params.trt_preview_features = preview_features.c_str();
+            } else {
+              ORT_THROW("[ERROR] [TensorRT] The value for the key 'trt_preview_features' should be a semi-colon seperated string i.e. 'preview_features'.\n");
             }
           } else {
             ORT_THROW("Invalid TensorRT EP option: ", option.first);

@@ -259,6 +259,39 @@ std::unique_lock<OrtMutex> TensorrtExecutionProvider::GetApiLock() const {
   return std::unique_lock<OrtMutex>(singleton);
 }
 
+std::vector<std::string> SplitToStringVec(std::string const& s, char separator) {
+  std::vector<std::string> splitted;
+
+  for (size_t start = 0; start < s.length();) {
+      size_t separatorIndex = s.find(separator, start);
+      if (separatorIndex == std::string::npos) {
+          separatorIndex = s.length();
+      }
+      splitted.emplace_back(s.substr(start, separatorIndex - start));
+      start = separatorIndex + 1;
+  }
+
+  return splitted;
+}
+
+std::vector<nvinfer1::PreviewFeature> ParseTrtPreviewFeatures(const std::string& str) {
+  std::vector<std::string> featureNames{SplitToStringVec(str, ',')};
+
+  std::vector<nvinfer1::PreviewFeature> previewFeatures;
+  previewFeatures.reserve(featureNames.size());
+  for (auto featureName : featureNames) {
+      if (featureName == "fasterDynamicShapes0805") {
+          previewFeatures.push_back(nvinfer1::PreviewFeature::kFASTER_DYNAMIC_SHAPES_0805);
+      } else if (featureName == "disableExternalTacticSourcesForCore0805") {
+          previewFeatures.push_back(nvinfer1::PreviewFeature::kDISABLE_EXTERNAL_TACTIC_SOURCES_FOR_CORE_0805);
+      } else {
+          throw std::invalid_argument(std::string("Unknown preview feature: ") + featureName);
+      }
+  }
+
+  return previewFeatures;
+}
+
 TensorrtExecutionProvider::TensorrtExecutionProvider(const TensorrtExecutionProviderInfo& info)
     : IExecutionProvider{onnxruntime::kTensorrtExecutionProvider, true}, info_(info), device_id_(info.device_id) {
   CUDA_CALL_THROW(cudaSetDevice(device_id_));
@@ -294,6 +327,7 @@ TensorrtExecutionProvider::TensorrtExecutionProvider(const TensorrtExecutionProv
       engine_decryption_lib_path_ = info.engine_decryption_lib_path;
     }
     force_sequential_engine_build_ = info.force_sequential_engine_build;
+    preview_features_ = ParseTrtPreviewFeatures(info.preview_features);
   } else {
     const std::string max_partition_iterations_env = onnxruntime::GetEnvironmentVar(tensorrt_env_vars::kMaxPartitionIterations);
     if (!max_partition_iterations_env.empty()) {
@@ -1169,6 +1203,11 @@ common::Status TensorrtExecutionProvider::Compile(const std::vector<Node*>& fuse
       }
     }
 
+    // Set preview feature flags
+    for (auto feature : preview_features_) {
+      trt_config->setPreviewFeature(feature, true);
+    }
+
     // Build TRT engine here if the graph doesn't have dynamic shape input. Otherwise engine will
     // be built at runtime
     tensorrt_ptr::unique_pointer<nvinfer1::ICudaEngine> trt_engine;
@@ -1296,7 +1335,7 @@ common::Status TensorrtExecutionProvider::Compile(const std::vector<Node*>& fuse
             &networks_[context->node_name], input_info_[context->node_name], output_info_[context->node_name],
             input_shape_ranges_[context->node_name], &tensorrt_mu_, fp16_enable_, int8_enable_, int8_calibration_cache_available_,
             dla_enable_, dla_core_, &max_workspace_size_, trt_node_name_with_precision, engine_cache_enable_, cache_path_,
-            runtime_.get(), nullptr, allocator_, dynamic_range_map, engine_decryption_enable_, engine_decryption_, engine_encryption_};
+            runtime_.get(), nullptr, allocator_, preview_features_, dynamic_range_map, engine_decryption_enable_, engine_decryption_, engine_encryption_};
       *state = p.release();
       return 0;
     };
@@ -1557,6 +1596,11 @@ common::Status TensorrtExecutionProvider::Compile(const std::vector<Node*>& fuse
           trt_config->setFlag(nvinfer1::BuilderFlag::kGPU_FALLBACK);
           trt_config->setDefaultDeviceType(nvinfer1::DeviceType::kDLA);
           trt_config->setDLACore(trt_state->dla_core);
+        }
+
+        // Set preview feature flags
+        for (auto feature : trt_state->preview_features) {
+          trt_config->setPreviewFeature(feature, true);
         }
 
         // Build engine

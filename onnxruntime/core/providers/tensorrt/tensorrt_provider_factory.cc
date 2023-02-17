@@ -70,6 +70,7 @@ struct Tensorrt_Provider : Provider {
     info.engine_decryption_enable = options.trt_engine_decryption_enable != 0;
     info.engine_decryption_lib_path = options.trt_engine_decryption_lib_path == nullptr ? "" : options.trt_engine_decryption_lib_path;
     info.force_sequential_engine_build = options.trt_force_sequential_engine_build != 0;
+    info.preview_features = options.trt_preview_features == nullptr ? "" : options.trt_preview_features;
     return std::make_shared<TensorrtProviderFactory>(info);
   }
 
@@ -135,6 +136,20 @@ struct Tensorrt_Provider : Provider {
     }
 
     trt_options.trt_force_sequential_engine_build = internal_options.force_sequential_engine_build;
+
+    str_size = internal_options.preview_features.size();
+    if (str_size == 0) {
+      trt_options.trt_preview_features = nullptr;
+    } else {
+      dest = new char[str_size + 1];
+#ifdef _MSC_VER
+      strncpy_s(dest, str_size + 1, internal_options.preview_features.c_str(), str_size);
+#else
+      strncpy(dest, internal_options.preview_features.c_str(), str_size);
+#endif
+      dest[str_size] = '\0';
+      trt_options.trt_preview_features = (const char*)dest;
+    }
   }
 
   ProviderOptions GetProviderOptions(const void* provider_options) override {

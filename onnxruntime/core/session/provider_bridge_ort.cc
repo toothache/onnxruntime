@@ -1192,7 +1192,7 @@ OrtTensorRTProviderOptionsV2 OrtTensorRTProviderOptionsToOrtTensorRTProviderOpti
   trt_options_converted.trt_force_sequential_engine_build = legacy_trt_options->trt_force_sequential_engine_build;
   // Add new provider option below
   // Use default value as this field is not available in OrtTensorRTProviderOptionsV
-
+  trt_options_converted.trt_preview_features = nullptr;
   return trt_options_converted;
 }
 
@@ -1509,6 +1509,7 @@ ORT_API_STATUS_IMPL(OrtApis::CreateTensorRTProviderOptions, _Outptr_ OrtTensorRT
   (*out)->trt_engine_decryption_enable = false;
   (*out)->trt_engine_decryption_lib_path = nullptr;
   (*out)->trt_force_sequential_engine_build = false;
+  (*out)->trt_preview_features=nullptr;
   return nullptr;
 #else
   ORT_UNUSED_PARAMETER(out);
