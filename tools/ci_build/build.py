@@ -468,7 +468,7 @@ def parse_arguments():
     parser.add_argument(
         "--cmake_generator",
         choices=['Visual Studio 15 2017', 'Visual Studio 16 2019', 'Visual Studio 17 2022', 'Ninja'],
-        default='Visual Studio 16 2019' if is_windows() else None,
+        default=None,
         help="Specify the generator that CMake invokes. "
         "This is only supported on Windows")
     parser.add_argument(
@@ -2191,7 +2191,8 @@ def main():
                     cmake_extra_args = ['-A', 'ARM64']
                 elif args.arm64ec:
                     cmake_extra_args = ['-A', 'ARM64EC']
-                cmake_extra_args += ['-G', args.cmake_generator]
+                if args.cmake_generator is not None:
+                    cmake_extra_args += ['-G', args.cmake_generator]
                 # Cannot test on host build machine for cross-compiled
                 # builds (Override any user-defined behaviour for test if any)
                 if args.test:
@@ -2205,13 +2206,13 @@ def main():
                 ]
             else:
                 if args.msvc_toolset:
-                    toolset = 'host=x64,version=' + args.msvc_toolset
+                    toolset = args.msvc_toolset + ',host=x64'
                 else:
                     toolset = 'host=x64'
                 if args.cuda_version:
                     toolset += ',cuda=' + args.cuda_version
                 cmake_extra_args = [
-                    '-A', 'x64', '-T', toolset, '-G', args.cmake_generator
+                    '-A', 'x64', '-T', toolset
                 ]
             if args.enable_windows_store:
                 cmake_extra_defines.append(
