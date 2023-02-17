@@ -56,6 +56,7 @@ constexpr const char* kDumpEpContextModel = "trt_dump_ep_context_model";
 constexpr const char* kEngineHwCompatible = "trt_engine_hw_compatible";
 constexpr const char* kONNXBytestream = "trt_onnx_bytestream";
 constexpr const char* kONNXBytestreamSize = "trt_onnx_bytestream_size";
+constexpr const char* kPreviewFeatures = "trt_preview_features";
 
 }  // namespace provider_option_names
 }  // namespace tensorrt
@@ -134,6 +135,7 @@ TensorrtExecutionProviderInfo TensorrtExecutionProviderInfo::FromProviderOptions
                 return Status::OK();
               })
           .AddAssignmentToReference(tensorrt::provider_option_names::kONNXBytestreamSize, info.onnx_bytestream_size)
+          .AddAssignmentToReference(tensorrt::provider_option_names::kPreviewFeatures, info.preview_features)
           .Parse(options));  // add new provider option here.
 
   info.user_compute_stream = user_compute_stream;
@@ -188,6 +190,7 @@ ProviderOptions TensorrtExecutionProviderInfo::ToProviderOptions(const TensorrtE
       {tensorrt::provider_option_names::kEngineHwCompatible, MakeStringWithClassicLocale(info.engine_hw_compatible)},
       {tensorrt::provider_option_names::kONNXBytestream, MakeStringWithClassicLocale(info.onnx_bytestream)},
       {tensorrt::provider_option_names::kONNXBytestreamSize, MakeStringWithClassicLocale(info.onnx_bytestream_size)},
+      {tensorrt::provider_option_names::kPreviewFeatures, MakeStringWithClassicLocale(info.preview_features)},
   };
   return options;
 }
@@ -355,5 +358,6 @@ void TensorrtExecutionProviderInfo::UpdateProviderOptions(void* provider_options
   trt_provider_options_v2.trt_engine_hw_compatible = internal_options.engine_hw_compatible;
   trt_provider_options_v2.trt_onnx_bytestream = internal_options.onnx_bytestream;
   trt_provider_options_v2.trt_onnx_bytestream_size = internal_options.onnx_bytestream_size;
+  trt_provider_options_v2.trt_preview_features = copy_string_if_needed(internal_options.preview_features);
 }
 }  // namespace onnxruntime
