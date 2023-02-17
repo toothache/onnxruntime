@@ -294,6 +294,9 @@ static Status FinalizeSessionOptions(const SessionOptions& user_provided_session
   return Status::OK();
 }
 
+static std::weak_ptr<AllocatorManager> g_allocator_manager;
+static std::mutex g_mutex;
+
 void InferenceSession::ConstructorCommon(const SessionOptions& session_options,
                                          const Environment& session_env) {
   auto status = FinalizeSessionOptions(session_options, model_proto_, is_model_proto_parsed_, session_options_);
@@ -410,7 +413,28 @@ void InferenceSession::ConstructorCommon(const SessionOptions& session_options,
   }
 
   telemetry_ = {};
-  allocator_manager_ = std::make_shared<onnxruntime::AllocatorManager>();
+
+  use_global_allocator_manager_ = session_options.use_global_allocator_manager_;
+  if (use_global_allocator_manager_) {
+    LOGS(*session_logger_, INFO) << "Use global allocator manager";
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (auto sp = g_allocator_manager.lock())
+    {
+      // return existing instance
+      LOGS(*session_logger_, INFO) << "Reusing existing global allocator";
+      allocator_manager_ = sp;
+    }
+    else
+    {
+      // weak ptr is expired or not created, make a new instance
+      LOGS(*session_logger_, INFO) << "Create a new global allocator";
+      allocator_manager_ = std::make_shared<onnxruntime::AllocatorManager>();
+      g_allocator_manager = allocator_manager_;
+    }
+  } else {
+    LOGS(*session_logger_, INFO) << "Use per-session allocator manager";
+    allocator_manager_ = std::make_shared<onnxruntime::AllocatorManager>();
+  }
 }
 
 InferenceSession::InferenceSession(const SessionOptions& session_options, const Environment& session_env)
@@ -533,7 +557,12 @@ common::Status InferenceSession::RegisterExecutionProvider(const std::shared_ptr
 
   const std::string& provider_type = p_exec_provider->Type();
 
-  p_exec_provider->RegisterAllocator(allocator_manager_);
+  if (use_global_allocator_manager_) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    p_exec_provider->RegisterAllocator(allocator_manager_);
+  } else {
+    p_exec_provider->RegisterAllocator(allocator_manager_);
+  }
 
   // Some session option values (default or user provided) may not work with some EPs.
   // Rather than put the onus on the user to know these, make the appropriate change while logging the change.

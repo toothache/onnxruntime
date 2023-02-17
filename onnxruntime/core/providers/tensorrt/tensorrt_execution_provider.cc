@@ -4,6 +4,7 @@
 #include <list>
 #include <unordered_set>
 #include "core/providers/shared_library/provider_api.h"
+#include "core/framework/arena_extend_strategy.h"
 #define ORT_API_MANUAL_INIT
 #include "core/session/onnxruntime_cxx_api.h"
 #include "core/common/safeint.h"
@@ -504,12 +505,28 @@ void TensorrtExecutionProvider::RegisterAllocator(std::shared_ptr<AllocatorManag
   // Used to allocate CUDA device memory
   allocator_ = allocator_manager->GetAllocator(device_id_, OrtMemTypeDefault);
   if (nullptr == allocator_) {
+    bool use_arena = true;
+    OrtArenaCfg arena_cfg(0, static_cast<int>(ArenaExtendStrategy::kSameAsRequested), -1, -1, -1);
+
+    LOGS_DEFAULT(INFO) << "[TensorRT EP] Create CUDA allocator: "
+      << "use_arena: " << use_arena
+      << ", extend_strategy: " << arena_cfg.arena_extend_strategy;
+
     AllocatorCreationInfo default_memory_info(
-        [](OrtDevice::DeviceId device_id) { return CreateCUDAAllocator(device_id, onnxruntime::CUDA); }, device_id_);
+        [](OrtDevice::DeviceId device_id) { return CreateCUDAAllocator(device_id, onnxruntime::CUDA); },
+        device_id_,
+        use_arena,
+        arena_cfg);
     allocator_ = CreateAllocator(default_memory_info);
     allocator_manager->InsertAllocator(allocator_);
   }
   TryInsertAllocator(allocator_);
+
+  {
+    AllocatorCreationInfo default_memory_info(
+        [](OrtDevice::DeviceId device_id) { return CreateCUDAAllocator(device_id, onnxruntime::CUDA); }, device_id_, false /*use_arena*/);
+    context_memory_allocator_ = CreateAllocator(default_memory_info);
+  }
 
   // OrtMemTypeCPUOutput -- allocated by cudaMallocHost, used to copy CUDA device memory to CPU
   // Use pinned memory instead of pageable memory make the data transfer faster
@@ -1296,7 +1313,8 @@ common::Status TensorrtExecutionProvider::Compile(const std::vector<Node*>& fuse
         size_t mem_size = trt_engine->getDeviceMemorySize();
         if (mem_size > max_ctx_mem_size_) {
           max_ctx_mem_size_ = mem_size;
-          context_memory_ = IAllocator::MakeUniquePtr<void>(allocator_, max_ctx_mem_size_);
+          context_memory_ = nullptr;
+          context_memory_ = IAllocator::MakeUniquePtr<void>(context_memory_allocator_, max_ctx_mem_size_);
         }
         trt_context = tensorrt_ptr::unique_pointer<nvinfer1::IExecutionContext>(trt_engine->createExecutionContextWithoutDeviceMemory());
       } else {
@@ -1351,7 +1369,7 @@ common::Status TensorrtExecutionProvider::Compile(const std::vector<Node*>& fuse
             &networks_[context->node_name], input_info_[context->node_name], output_info_[context->node_name],
             input_shape_ranges_[context->node_name], &tensorrt_mu_, fp16_enable_, int8_enable_, int8_calibration_cache_available_,
             dla_enable_, dla_core_, &max_workspace_size_, trt_node_name_with_precision, engine_cache_enable_, cache_path_,
-            runtime_.get(), nullptr, allocator_, preview_features_, context_memory_sharing_enable_, &max_ctx_mem_size_, &context_memory_,
+            runtime_.get(), nullptr, allocator_, context_memory_allocator_, preview_features_, context_memory_sharing_enable_, &max_ctx_mem_size_, &context_memory_,
             dynamic_range_map, engine_decryption_enable_, engine_decryption_, engine_encryption_};
       *state = p.release();
       return 0;
@@ -1377,6 +1395,7 @@ common::Status TensorrtExecutionProvider::Compile(const std::vector<Node*>& fuse
       auto trt_profile = &(trt_state->trt_profile);
       auto alloc = trt_state->scratch_allocator;
       auto context_memory = trt_state->context_memory;
+      auto context_memory_alloc = trt_state->context_memory_allocator;
       auto max_context_mem_size_ptr = trt_state->max_context_mem_size_ptr;
       int num_inputs = static_cast<int>(input_indexes.size());
       int num_outputs = static_cast<int>(output_indexes.size());
@@ -1963,7 +1982,8 @@ common::Status TensorrtExecutionProvider::Compile(const std::vector<Node*>& fuse
         size_t mem_size = trt_engine->getDeviceMemorySize();
         if (mem_size > *max_context_mem_size_ptr) {
           *max_context_mem_size_ptr = mem_size;
-          *context_memory = IAllocator::MakeUniquePtr<void>(alloc, *max_context_mem_size_ptr);
+          *context_memory = nullptr;
+          *context_memory = IAllocator::MakeUniquePtr<void>(context_memory_alloc, *max_context_mem_size_ptr);
         }
         trt_context->setDeviceMemory((*context_memory).get());
       }

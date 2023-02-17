@@ -129,6 +129,9 @@ struct SessionOptions {
 
   // custom function callback to join a thread
   OrtCustomJoinThreadFn custom_join_thread_fn = nullptr;
+
+  // use global allocator manager
+  bool use_global_allocator_manager_ = true;
 };
 
 }  // namespace onnxruntime

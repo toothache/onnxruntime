@@ -104,6 +104,7 @@ struct TensorrtFuncState {
   nvinfer1::IRuntime* runtime = nullptr;
   nvinfer1::IOptimizationProfile* trt_profile = nullptr;
   AllocatorPtr scratch_allocator;
+  AllocatorPtr context_memory_allocator;
   std::vector<nvinfer1::PreviewFeature> preview_features;
   bool context_memory_sharing_enable;
   size_t* max_context_mem_size_ptr = nullptr;
@@ -168,6 +169,7 @@ class TensorrtExecutionProvider : public IExecutionProvider {
   OrtMutex tensorrt_mu_;
   int device_id_;
   AllocatorPtr allocator_;
+  AllocatorPtr context_memory_allocator_;
   std::vector<nvinfer1::PreviewFeature> preview_features_;
   bool context_memory_sharing_enable_ = false;
   size_t max_ctx_mem_size_ = 0;
