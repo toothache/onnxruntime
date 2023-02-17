@@ -444,6 +444,7 @@ def parse_arguments():
         help="Build TVM with CUDA support")
     parser.add_argument(
         "--use_tensorrt", action='store_true', help="Build with TensorRT")
+    parser.add_argument("--use_tensorrt_builtin_parser", action="store_true", help="Use TensorRT builtin parser")
     parser.add_argument(
         "--tensorrt_home", help="Path to TensorRT installation dir")
     parser.add_argument(
@@ -771,6 +772,7 @@ def generate_build_tree(cmake_path, source_dir, build_dir, cuda_home, cudnn_home
         "-Donnxruntime_USE_NUPHAR=" + ("ON" if args.use_nuphar else "OFF"),
         "-Donnxruntime_USE_TENSORRT=" + ("ON" if args.use_tensorrt else "OFF"),
         "-Donnxruntime_TENSORRT_HOME=" + (tensorrt_home if args.use_tensorrt else ""),
+        "-Donnxruntime_USE_TENSORRT_BUILTIN_PARSER=" + ("ON" if args.use_tensorrt_builtin_parser else "OFF"),
         # set vars for TVM
         "-Donnxruntime_USE_TVM=" + ("ON" if args.use_tvm else "OFF"),
         "-Donnxruntime_TVM_CUDA_RUNTIME=" + ("ON" if args.use_tvm and args.tvm_cuda_runtime else "OFF"),
