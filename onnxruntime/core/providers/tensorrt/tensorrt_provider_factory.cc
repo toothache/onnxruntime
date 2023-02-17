@@ -71,6 +71,7 @@ struct Tensorrt_Provider : Provider {
     info.engine_decryption_lib_path = options.trt_engine_decryption_lib_path == nullptr ? "" : options.trt_engine_decryption_lib_path;
     info.force_sequential_engine_build = options.trt_force_sequential_engine_build != 0;
     info.preview_features = options.trt_preview_features == nullptr ? "" : options.trt_preview_features;
+    info.context_memory_sharing_enable = options.trt_context_memory_sharing_enable != 0;
     return std::make_shared<TensorrtProviderFactory>(info);
   }
 
@@ -150,6 +151,8 @@ struct Tensorrt_Provider : Provider {
       dest[str_size] = '\0';
       trt_options.trt_preview_features = (const char*)dest;
     }
+
+    trt_options.trt_context_memory_sharing_enable = internal_options.context_memory_sharing_enable;
   }
 
   ProviderOptions GetProviderOptions(const void* provider_options) override {

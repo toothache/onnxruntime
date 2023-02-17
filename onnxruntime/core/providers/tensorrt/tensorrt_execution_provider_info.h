@@ -32,6 +32,7 @@ struct TensorrtExecutionProviderInfo {
   std::string engine_decryption_lib_path{""};
   bool force_sequential_engine_build{false};
   std::string preview_features{""};
+  bool context_memory_sharing_enable{false};
 
   static TensorrtExecutionProviderInfo FromProviderOptions(const ProviderOptions& options);
   static ProviderOptions ToProviderOptions(const TensorrtExecutionProviderInfo& info);

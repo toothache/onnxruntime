@@ -393,6 +393,8 @@ std::unique_ptr<IExecutionProvider> CreateExecutionProviderInstance(
             nullptr,
             0,
             nullptr,
+            0,
+            nullptr,
             0};
         for (auto option : it->second) {
           if (option.first == "device_id") {
@@ -425,7 +427,7 @@ std::unique_ptr<IExecutionProvider> CreateExecutionProviderInstance(
             } else if (option.second == "False" || option.second == "false") {
               params.trt_fp16_enable = false;
             } else {
-              ORT_THROW("[ERROR] [TensorRT] The value for the key 'trt_fp16_enable' should be a boolean i.e. 'True' or 'False'. Default value is False.\n");
+              ORT_THROW("[ERROR] [TensorRT] The value for the key 'trt_fp16_enable' should be 'True' or 'False'. Default value is 'False'.\n");
             }
           } else if (option.first == "trt_int8_enable") {
             if (option.second == "True" || option.second == "true") {
@@ -433,7 +435,7 @@ std::unique_ptr<IExecutionProvider> CreateExecutionProviderInstance(
             } else if (option.second == "False" || option.second == "false") {
               params.trt_int8_enable = false;
             } else {
-              ORT_THROW("[ERROR] [TensorRT] The value for the key 'trt_int8_enable' should be a boolean i.e. 'True' or 'False'. Default value is False.\n");
+              ORT_THROW("[ERROR] [TensorRT] The value for the key 'trt_int8_enable' should be 'True' or 'False'. Default value is 'False'.\n");
             }
           } else if (option.first == "trt_int8_calibration_table_name") {
             if (!option.second.empty()) {
@@ -448,7 +450,7 @@ std::unique_ptr<IExecutionProvider> CreateExecutionProviderInstance(
             } else if (option.second == "False" || option.second == "false") {
               params.trt_int8_use_native_calibration_table = false;
             } else {
-              ORT_THROW("[ERROR] [TensorRT] The value for the key 'trt_int8_use_native_calibration_table' should be a boolean i.e. 'True' or 'False'. Default value is False.\n");
+              ORT_THROW("[ERROR] [TensorRT] The value for the key 'trt_int8_use_native_calibration_table' should be 'True' or 'False'. Default value is 'False'.\n");
             }
           } else if (option.first == "trt_dla_enable") {
             if (option.second == "True" || option.second == "true") {
@@ -456,7 +458,7 @@ std::unique_ptr<IExecutionProvider> CreateExecutionProviderInstance(
             } else if (option.second == "False" || option.second == "false") {
               params.trt_dla_enable = false;
             } else {
-              ORT_THROW("[ERROR] [TensorRT] The value for the key 'trt_dla_enable' should be a boolean i.e. 'True' or 'False'. Default value is False.\n");
+              ORT_THROW("[ERROR] [TensorRT] The value for the key 'trt_dla_enable' should be 'True' or 'False'. Default value is 'False'.\n");
             }
           } else if (option.first == "trt_dla_core") {
             if (!option.second.empty()) {
@@ -470,7 +472,7 @@ std::unique_ptr<IExecutionProvider> CreateExecutionProviderInstance(
             } else if (option.second == "False" || option.second == "false") {
               params.trt_dump_subgraphs = false;
             } else {
-              ORT_THROW("[ERROR] [TensorRT] The value for the key 'trt_dump_subgraphs' should be a boolean i.e. 'True' or 'False'. Default value is False.\n");
+              ORT_THROW("[ERROR] [TensorRT] The value for the key 'trt_dump_subgraphs' should be 'True' or 'False'. Default value is 'False'.\n");
             }
           } else if (option.first == "trt_engine_cache_enable") {
             if (option.second == "True" || option.second == "true") {
@@ -478,7 +480,7 @@ std::unique_ptr<IExecutionProvider> CreateExecutionProviderInstance(
             } else if (option.second == "False" || option.second == "false") {
               params.trt_engine_cache_enable = false;
             } else {
-              ORT_THROW("[ERROR] [TensorRT] The value for the key 'trt_engine_cache_enable' should be a boolean i.e. 'True' or 'False'. Default value is False.\n");
+              ORT_THROW("[ERROR] [TensorRT] The value for the key 'trt_engine_cache_enable' should be 'True' or 'False'. Default value is 'False'.\n");
             }
           } else if (option.first == "trt_engine_cache_path") {
             if (!option.second.empty()) {
@@ -493,7 +495,7 @@ std::unique_ptr<IExecutionProvider> CreateExecutionProviderInstance(
             } else if (option.second == "False" || option.second == "false") {
               params.trt_engine_decryption_enable = false;
             } else {
-              ORT_THROW("[ERROR] [TensorRT] The value for the key 'trt_engine_decryption_enable' should be a boolean i.e. 'True' or 'False'. Default value is False.\n");
+              ORT_THROW("[ERROR] [TensorRT] The value for the key 'trt_engine_decryption_enable' should be 'True' or 'False'. Default value is 'False'.\n");
             }
           } else if (option.first == "trt_engine_decryption_lib_path") {
             if (!option.second.empty()) {
@@ -508,7 +510,15 @@ std::unique_ptr<IExecutionProvider> CreateExecutionProviderInstance(
             } else if (option.second == "False" || option.second == "false") {
               params.trt_force_sequential_engine_build = false;
             } else {
-              ORT_THROW("[ERROR] [TensorRT] The value for the key 'trt_force_sequential_engine_build' should be a boolean i.e. 'True' or 'False'. Default value is False.\n");
+              ORT_THROW("[ERROR] [TensorRT] The value for the key 'trt_force_sequential_engine_build' should be 'True' or 'False'. Default value is 'False'.\n");
+            }
+          } else if (option.first == "trt_context_memory_sharing_enable") {
+            if (option.second == "True" || option.second == "true") {
+              params.trt_context_memory_sharing_enable = true;
+            } else if (option.second == "False" || option.second == "false") {
+              params.trt_context_memory_sharing_enable = false;
+            } else {
+              ORT_THROW("[ERROR] [TensorRT] The value for the key 'trt_context_memory_sharing_enable' should be 'True' or 'False'. Default value is 'False'.\n");
             }
           } else if (option.first == "trt_preview_features") {
             if (!option.second.empty()) {
