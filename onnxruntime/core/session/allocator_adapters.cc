@@ -62,14 +62,7 @@ const OrtMemoryInfo* OrtAllocatorImplWrappingIAllocator::Info() const {
 
 std::string OrtAllocatorImplWrappingIAllocator::Stats() const {
   AllocatorStats stats{};
-
-  ORT_TRY {
-    i_allocator_->GetStats(&stats);
-  }
-  ORT_CATCH(const NotImplementedException& /*e*/) {
-    return {};
-  }
-
+  i_allocator_->GetStats(&stats);
   auto stats_str = stats.DebugString();
 
   // Process the debug string to a comma-separated format and remove redundant spaces

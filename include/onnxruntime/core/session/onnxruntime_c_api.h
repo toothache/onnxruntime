@@ -343,6 +343,10 @@ typedef struct OrtAllocator {
 
   /**
    * @brief Function used to get the statistics of the allocator.
+   * Return a stats string that contains information about the allocator. The string is formatted
+   * as 'key:value' pairs separated by commas. For example:
+   *
+   * If the allocator does not support this function, it throws onnxruntime::NotImplementedException exception.
    */
   void(ORT_API_CALL* GetStats)(const struct OrtAllocator* this_, _Inout_ struct OrtAllocator* allocator,
                                _Outptr_ char** stats);
@@ -5274,6 +5278,17 @@ struct OrtApi {
   ORT_API2_STATUS(GetTensorSizeInBytes, _In_ const OrtValue* ort_value, _Out_ size_t* size);
 
   /** \brief Calls OrtAllocator::GetStats function
+   *
+   * Return a stats string that contains information about the allocator. The string is formatted
+   * as 'key:value' pairs separated by commas.
+   *
+   * If the allocator does not support this function, the function returns ORT_NOT_IMPLEMENTED.
+   *
+   * \param[in] ort_allocator The allocator to get stats from.
+   * \param[in] allocator The allocator to allocate the stats string.
+   * \param[out] out The stats string.
+   *
+   * \snippet{doc} snippets.dox OrtStatus Return Value
    *
    * \since Version 1.23.
    */
