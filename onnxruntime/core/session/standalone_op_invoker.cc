@@ -5,6 +5,7 @@
 #include "core/framework/kernel_registry.h"
 #include "core/framework/error_code_helper.h"
 #include "core/framework/TensorSeq.h"
+#include "core/framework/tensorprotoutils.h"
 #include "core/session/ort_apis.h"
 #include "core/session/onnxruntime_type_conversion.h"
 #include <unordered_map>
@@ -355,9 +356,34 @@ onnxruntime::Status CreateOpAttr(const char* name, const void* data, int len, Or
       }
       attr->set_type(ONNX_NAMESPACE::AttributeProto_AttributeType::AttributeProto_AttributeType_STRINGS);
       break;
+    case OrtOpAttrType::ORT_OP_ATTR_TENSOR: {
+      if (data == nullptr || len != 1) {
+        return Status(common::ONNXRUNTIME, common::INVALID_ARGUMENT,
+                      "Tensor attribute data must be an OrtValue pointer and len must be 1.");
+      }
+      const auto* value = static_cast<const OrtValue*>(data);
+      if (!value->IsAllocated() || !value->IsTensor()) {
+        return Status(common::ONNXRUNTIME, common::INVALID_ARGUMENT, "Tensor attribute must be an allocated tensor.");
+      }
+      const auto& tensor = value->Get<Tensor>();
+      if (tensor.Location().device.Type() != OrtDevice::CPU) {
+        return Status(common::ONNXRUNTIME, common::INVALID_ARGUMENT, "Tensor attribute must be on CPU.");
+      }
+#ifdef ENABLE_STRIDED_TENSORS
+      if (!tensor.IsContiguous()) {
+        return Status(common::ONNXRUNTIME, common::INVALID_ARGUMENT, "Tensor attribute must be contiguous.");
+      }
+#endif
+      *attr->mutable_t() = utils::TensorToTensorProto(tensor, "", false);
+      attr->set_type(ONNX_NAMESPACE::AttributeProto_AttributeType::AttributeProto_AttributeType_TENSOR);
+      break;
+    }
     default:
       status = Status(common::ONNXRUNTIME, common::FAIL, "Attribute type not supported yet.");
       break;
+  }
+  if (!status.IsOK()) {
+    return status;
   }
   *op_attr = reinterpret_cast<OrtOpAttr*>(attr.release());
   return status;

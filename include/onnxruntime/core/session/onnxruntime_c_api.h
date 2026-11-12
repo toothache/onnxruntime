@@ -4191,7 +4191,8 @@ struct OrtApi {
   /** \brief: Create attribute of onnxruntime operator
    *
    * \param[in] name Name of the attribute
-   * \param[in] data Data content of the attribute
+   * \param[in] data Data content of the attribute. For ORT_OP_ATTR_TENSOR, pass a pointer to an allocated,
+   *                 contiguous CPU tensor OrtValue. Its contents are copied into the attribute.
    * \param[in] len Number of bytes stored in data for ORT_OP_ATTR_STRING.
                     Number of elements if data represents an array (e.g., ORT_OP_ATTR_INTS). Otherwise, set to 1.
    * \param[in] type Data type

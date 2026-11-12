@@ -414,6 +414,71 @@ TEST(ModelEditorAPITest, Basic_CxxApi) {
                         592.0f, 640.0f, 688.0f, 736.0f, 784.0f, 832.0f, 880.0f, 928.0f});
 }
 
+TEST(ModelEditorAPITest, TensorAttribute) {
+  const std::vector<int64_t> dims = {40};
+  std::vector<float> values(40);
+  std::iota(values.begin(), values.end(), 1.0f);
+  const std::vector<float> expected = values;
+  auto memory_info = MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeDefault);
+  auto tensor = Value::CreateTensor(memory_info, values.data(), values.size(), dims.data(), dims.size());
+
+  std::vector<OpAttr> attributes;
+  attributes.emplace_back("value", static_cast<OrtValue*>(tensor), 1, ORT_OP_ATTR_TENSOR);
+  tensor = Value(nullptr);
+  values[0] = 100.0f;
+
+  TensorTypeAndShapeInfo tensor_info(ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT, dims);
+  auto type_info = TypeInfo::CreateTensorInfo(tensor_info.GetConst());
+  std::vector<ValueInfo> graph_outputs;
+  graph_outputs.emplace_back("Y", type_info.GetConst());
+
+  Graph graph;
+  graph.SetOutputs(graph_outputs);
+  Node node("Constant", onnxruntime::kOnnxDomain, "Constant", {}, {"Y"}, attributes);
+  graph.AddNode(node);
+
+  Model model({{onnxruntime::kOnnxDomain, 18}});
+  model.AddGraph(graph);
+  auto session = CreateSession(*ort_env, model);
+  TestInference<float>(session, {}, "Y", dims, expected);
+}
+
+TEST(ModelEditorAPITest, TensorAttributeInvalidInput) {
+  const auto& api = Ort::GetApi();
+  OrtOpAttr* attr = nullptr;
+  Ort::Status status(api.CreateOpAttr("value", nullptr, 1, ORT_OP_ATTR_TENSOR, &attr));
+  ASSERT_FALSE(status.IsOK());
+  EXPECT_EQ(status.GetErrorCode(), ORT_INVALID_ARGUMENT);
+  EXPECT_EQ(attr, nullptr);
+
+  const std::vector<int64_t> dims = {1};
+  float data = 1.0f;
+  auto memory_info = MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeDefault);
+  auto tensor = Value::CreateTensor(memory_info, &data, 1, dims.data(), dims.size());
+  Ort::Status invalid_length(api.CreateOpAttr("value", static_cast<OrtValue*>(tensor), 0, ORT_OP_ATTR_TENSOR, &attr));
+  ASSERT_FALSE(invalid_length.IsOK());
+  EXPECT_EQ(invalid_length.GetErrorCode(), ORT_INVALID_ARGUMENT);
+  EXPECT_EQ(attr, nullptr);
+}
+
+TEST(ModelEditorAPITest, StringTensorAttribute) {
+  const std::vector<int64_t> dims = {2};
+  AllocatorWithDefaultOptions allocator;
+  auto tensor = Value::CreateTensor(allocator, dims.data(), dims.size(), ONNX_TENSOR_ELEMENT_DATA_TYPE_STRING);
+  const char* values[] = {"first", "second"};
+  tensor.FillStringTensor(values, 2);
+
+  OpAttr attr("value", static_cast<OrtValue*>(tensor), 1, ORT_OP_ATTR_TENSOR);
+  tensor.FillStringTensorElement("changed", 0);
+
+  Value copied(nullptr);
+  auto status = attr.GetTensorAttributeAsOrtValue(copied);
+  ASSERT_TRUE(status.IsOK()) << status.GetErrorMessage();
+  EXPECT_EQ(copied.GetTensorTypeAndShapeInfo().GetShape(), dims);
+  EXPECT_EQ(copied.GetStringTensorElement(0), "first");
+  EXPECT_EQ(copied.GetStringTensorElement(1), "second");
+}
+
 TEST(ModelEditorAPITest, BasicModelEdit_CxxApi) {
   //
   // Load existing model
